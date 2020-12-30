@@ -1,5 +1,5 @@
+import sys
 import time
-import threading
 import socket
 import argparse
 import select
@@ -33,14 +33,19 @@ def main(ports):
 
 if __name__=='__main__':
     try:
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-p', '--ports')
-        parser.add_argument('-a', '--host')
-        parser.add_argument('-o', '--output')
+        parser = argparse.ArgumentParser(prog='python3 honeypot.py', formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='Multi-Port Honeypot')
+        req_grp = parser.add_argument_group(title='required arguments')
+        req_grp.add_argument('-p', '--ports', nargs='+', help="Comma separated port numbers (ex. 21,22,23)")
+        req_grp.add_argument('-a', '--host', nargs='+', help="IP address of your network interface (ex. 192.168.0.105)")
+        parser.add_argument('-o', '--output', nargs='?', default='./', help="Path to the directory where the log will be saved")
         args = parser.parse_args()
 
+        if not args.ports or not args.host:
+            parser.print_help()
+            sys.exit()
+
         if args.output:
-            LOG_PATH = args.output;
+            LOG_PATH = [args.output[:-1] if args.output[-1] == '/' else args.output];
 
         if args.host:
             HOST = args.host;
