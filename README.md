@@ -1,6 +1,6 @@
 # Multi-Port Honeypot [![version](https://img.shields.io/badge/version-1.0-red.svg)](https://semver.org)
 
-Very simple Python honeypot that can run on multiple ports on a single machine. It can detect if someone is scanning your network or tampering with the specified honeypot ports. 
+Multi-Port Honeypot is a tool designed to run on one or multiple ports on a single machine. It can detect TCP and UDP activity on your network on the specified ports and create a log file containing information about the attacker. 
 
 ## Requirements
 * Any version of Python3

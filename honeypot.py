@@ -1,6 +1,6 @@
 import sys
 import time
-import socket
+from socket import * 
 import argparse
 import select
 
@@ -9,35 +9,55 @@ HOST = ''
 
 sockets = []
 
-def writeLog(client):
-    separator = '=' * 50
-    fopen = open(LOG_PATH + '/honey.log', 'a')
-    fopen.write('Time: %s\nIP: %s\nPort: %d\n%s\n\n'%(time.ctime(), client[0], client[1], separator))
+def writeLog(client, protocol):
+    fopen = open(LOG_PATH + '/honey.txt', 'a')
+    fopen.write('Time: %s\nIP: %s\nPort: %d\nProtocol: %s\n\n' % (time.ctime(), client[0], client[1], protocol))
     fopen.close()
+
+def createSocket(port, protocol):
+    s = socket(AF_INET, protocol)
+    s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    s.bind((HOST, port))
+    return s
+
+def createTCPSocket(port):
+    s = createSocket(port, SOCK_STREAM)
+    s.listen(1)
+    return s
+
+def createUDPSocket(port):
+    return createSocket(port, SOCK_DGRAM)
 
 def main(ports):
     for port in ports:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind((HOST, int(port)))
-        s.listen(1)
-
-        sockets.append(s)
+        sockets.append(createTCPSocket(port))
+        sockets.append(createUDPSocket(port))
 
     while True:
         readable,_,_ = select.select(sockets, [], [])
         ready = readable[0]
-        sock, address = ready.accept()
-        sock.close()
-        writeLog(address)
+
+        address = ''
+        protocol = ''
+
+        if ready.type == SocketKind.SOCK_DGRAM:
+            _, address = ready.recvfrom(1024)
+            protocol = 'UDP'
+
+        elif ready.type == SocketKind.SOCK_STREAM:
+            sock, address = ready.accept()
+            sock.close()
+            protocol = 'TCP'
+
+        writeLog(address, protocol)
 
 if __name__=='__main__':
     try:
         parser = argparse.ArgumentParser(prog='python3 honeypot.py', formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='Multi-Port Honeypot')
         req_grp = parser.add_argument_group(title='required arguments')
-        req_grp.add_argument('-p', '--ports', nargs='+', help="Comma separated port numbers (ex. 21,22,23)")
-        req_grp.add_argument('-a', '--host', nargs='+', help="IP address of your network interface (ex. 192.168.0.105)")
-        parser.add_argument('-o', '--output', nargs='?', default='./', help="Path to the directory where the log will be saved")
+        req_grp.add_argument('-p', '--ports', help="Comma separated port numbers (ex. 21,22,23)")
+        req_grp.add_argument('-a', '--host', help="IP address of your network interface (ex. 192.168.0.105)")
+        parser.add_argument('-o', '--output', help="Path to the directory where the log will be saved")
         args = parser.parse_args()
 
         if not args.ports or not args.host:
@@ -45,12 +65,15 @@ if __name__=='__main__':
             sys.exit()
 
         if args.output:
-            LOG_PATH = [args.output[:-1] if args.output[-1] == '/' else args.output];
+            LOG_PATH = args.output
 
         if args.host:
-            HOST = args.host;
+            HOST = args.host
 
-        main(args.ports.split(","))
+        port, *remaining = args.ports.split(',')
+        ports = list(map(int, [port] + remaining))
+
+        main(ports)
     except (KeyboardInterrupt, SystemExit):
         exit(0)
     except BaseException as e:
